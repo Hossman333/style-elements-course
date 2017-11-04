@@ -1,6 +1,8 @@
 module Main exposing (..)
 
-import Element exposing (text)
+import Color exposing (black, white)
+import Element exposing (column, el, image, node, paragraph, text, wrappedRow)
+import Element.Attributes exposing (center, height, inlineStyle, px, verticalCenter, width)
 import Html exposing (Html)
 import Http exposing (expectJson)
 import HttpBuilder exposing (..)
@@ -8,8 +10,11 @@ import Json.Decode
 import Json.Decode.Pipeline
 import RemoteData exposing (WebData)
 import Style exposing (..)
-import Style.Font as Font
+import Style.Color
+import Style.Font as Font exposing (lineHeight)
+import Style.Transition exposing (transitions)
 import Task exposing (..)
+import Time
 
 
 ---- MODEL ----
@@ -77,16 +82,30 @@ type alias Champion =
 
 type StyleClass
     = NoStyle
-    | Header
+    | ChampionStyles
+    | ChampionName
 
 
 sheet : StyleSheet StyleClass variation
 sheet =
     Style.styleSheet
         [ style NoStyle []
-        , style Header
-            [ Font.size 24
-            , Font.uppercase
+        , style ChampionStyles []
+        , style ChampionName
+            [ Font.size 14
+            , Style.Color.text white
+            , opacity 0
+            , transitions
+                [ { delay = 0
+                  , duration = 300 * Time.millisecond
+                  , easing = "ease"
+                  , props = [ "opacity" ]
+                  }
+                ]
+            , hover
+                [ opacity 1
+                , cursor "pointer"
+                ]
             ]
         ]
 
@@ -113,7 +132,34 @@ view model =
                 text (toString error)
 
             RemoteData.Success champs ->
-                Element.paragraph NoStyle [] [ text (toString champs) ]
+                champs
+                    |> List.map
+                        (\champ ->
+                            column ChampionStyles
+                                [ inlineStyle
+                                    [ ( "position", "relative" )
+                                    ]
+                                ]
+                                [ image
+                                    NoStyle
+                                    []
+                                    { src = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/" ++ champ.image
+                                    , caption = champ.name
+                                    }
+                                , paragraph ChampionName
+                                    [ width (px 120)
+                                    , height (px 120)
+                                    , inlineStyle
+                                        [ ( "position", "absolute" )
+                                        , ( "top", "0" )
+                                        , ( "line-height", "120px" )
+                                        , ( "background-color", "rgba(0,0,0,0.8)" )
+                                        ]
+                                    ]
+                                    [ text champ.name ]
+                                ]
+                        )
+                    |> wrappedRow NoStyle [ center ]
 
             _ ->
                 text ""
