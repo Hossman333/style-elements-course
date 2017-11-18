@@ -38,6 +38,15 @@ init =
           ]
 
 
+decodeChampionInfo : Json.Decode.Decoder ChampionInfo
+decodeChampionInfo =
+    Json.Decode.Pipeline.decode ChampionInfo
+        |> Json.Decode.Pipeline.required "attack" Json.Decode.int
+        |> Json.Decode.Pipeline.required "defense" Json.Decode.int
+        |> Json.Decode.Pipeline.required "magic" Json.Decode.int
+        |> Json.Decode.Pipeline.required "difficulty" Json.Decode.int
+
+
 decodeChampion : Json.Decode.Decoder Champion
 decodeChampion =
     Json.Decode.Pipeline.decode Champion
@@ -46,6 +55,9 @@ decodeChampion =
         |> Json.Decode.Pipeline.custom
             (Json.Decode.at [ "image", "full" ] Json.Decode.string)
         |> Json.Decode.Pipeline.required "id" Json.Decode.string
+        |> Json.Decode.Pipeline.required "blurb" Json.Decode.string
+        |> Json.Decode.Pipeline.required "info" decodeChampionInfo
+        |> Json.Decode.Pipeline.required "tags" (Json.Decode.list Json.Decode.string)
 
 
 decodeChampions : Json.Decode.Decoder (List Champion)
@@ -77,6 +89,17 @@ type alias Champion =
     , title : String
     , image : String
     , id : String
+    , blurb : String
+    , info : ChampionInfo
+    , tags : List String
+    }
+
+
+type alias ChampionInfo =
+    { attack : Int
+    , defense : Int
+    , magic : Int
+    , difficulty : Int
     }
 
 
@@ -129,7 +152,7 @@ view model =
     Element.layout sheet <|
         case model.champions of
             RemoteData.Failure error ->
-                text (toString error)
+                Debug.crash (toString error)
 
             RemoteData.Success champs ->
                 champs
