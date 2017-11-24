@@ -1,11 +1,11 @@
 module Main exposing (..)
 
 import Color exposing (black, rgba, white)
-import Element exposing (column, el, empty, h1, h2, image, modal, node, paragraph, row, screen, text, textLayout, within, wrappedColumn, wrappedRow)
+import Element exposing (Device, classifyDevice, column, el, empty, h1, h2, image, modal, node, paragraph, row, screen, text, textLayout, within, wrappedColumn, wrappedRow)
 import Element.Attributes exposing (alignLeft, alignRight, center, fill, height, inlineStyle, paddingBottom, paddingTop, paddingXY, percent, px, spacing, spread, verticalCenter, width)
 import Element.Events exposing (onClick)
 import Html exposing (Html)
-import Http exposing (decodeUri, encodeUri, expectJson)
+import Http exposing (Part, decodeUri, encodeUri, expectJson)
 import HttpBuilder exposing (..)
 import Json.Decode
 import Json.Decode.Pipeline
@@ -18,6 +18,7 @@ import Style.Transition exposing (transitions)
 import Task exposing (..)
 import Time
 import UrlParser exposing (..)
+import Window
 
 
 ---- MODEL ----
@@ -27,19 +28,24 @@ type alias Model =
     { route : Route
     , location : Navigation.Location
     , champions : WebData (List Champion)
+    , device : Device
     }
 
 
-init : Navigation.Location -> ( Model, Cmd Msg )
-init location =
+init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
+init flags location =
     let
         route =
             fromLocation location
+
+        device =
+            classifyDevice flags.windowSize
 
         model =
             { route = route
             , location = location
             , champions = RemoteData.Loading
+            , device = device
             }
     in
     model
@@ -102,6 +108,7 @@ urlParser =
         ]
 
 
+toUrl : Route -> String
 toUrl route =
     case route of
         Home ->
@@ -131,6 +138,7 @@ type Msg
     | LocationChange Navigation.Location
     | GotChampions (WebData (List Champion))
     | GoTo Route
+    | ResizeWindow Window.Size
 
 
 type alias Champion =
@@ -206,6 +214,9 @@ update msg model =
                     fromLocation loc
             in
             { model | route = newRoute, location = loc } ! []
+
+        ResizeWindow windowSize ->
+            { model | device = classifyDevice windowSize } ! []
 
         NoOp ->
             model ! []
@@ -309,115 +320,200 @@ view model =
                             Just champ ->
                                 column NoStyle
                                     []
-                                    [ renderChampions champs
-                                    , within
-                                        [ overlay ]
-                                      <|
-                                        modal
-                                            NoStyle
-                                            [ center
-                                            , verticalCenter
-                                            , width (percent 50)
-                                            ]
-                                        <|
-                                            column NoStyle
-                                                [ inlineStyle
-                                                    [ ( "background-color", "#fff" )
-                                                    , ( "border-radius", "6px" )
-                                                    ]
-                                                ]
-                                                [ row NoStyle
-                                                    [ spread
-                                                    , spacing 20
-                                                    ]
-                                                    [ column NoStyle
-                                                        [ alignLeft
-                                                        ]
-                                                        [ image NoStyle
-                                                            []
-                                                            { src =
-                                                                case removeExtension champ of
-                                                                    Just champImg ->
-                                                                        "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/" ++ champImg ++ "_0.jpg"
+                                    [ if model.device.phone then
+                                        empty
+                                      else
+                                        renderChampions champs
+                                    , if model.device.phone then
+                                        column NoStyle
+                                            []
+                                            [ image NoStyle
+                                                [ center ]
+                                                { src =
+                                                    case removeExtension champ of
+                                                        Just champImg ->
+                                                            "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/" ++ champImg ++ "_0.jpg"
 
-                                                                    Nothing ->
-                                                                        ""
-                                                            , caption = champ.name
-                                                            }
-                                                        ]
-                                                    , wrappedColumn NoStyle
-                                                        [ alignLeft
-                                                        , paddingXY 0 10
-                                                        ]
-                                                        [ h1 NoStyle [ inlineStyle [ ( "font-size", "48px" ) ] ] <| text champ.name
-                                                        , h2 NoStyle [ inlineStyle [ ( "font-size", "22px" ) ] ] <| text champ.title
-                                                        , paragraph NoStyle
-                                                            [ inlineStyle
-                                                                [ ( "font-size", "13px" )
-                                                                , ( "text-align", "left" )
-                                                                , ( "color", "#5D6467" )
-                                                                ]
-                                                            , paddingXY 0 15
-                                                            ]
-                                                            [ text champ.blurb
-                                                            ]
-                                                        , el MainFont [ paddingBottom 2 ] <| text ("Attack: " ++ toString champ.info.attack)
-                                                        , el NoStyle
-                                                            [ inlineStyle
-                                                                [ ( "background-color", "#50E3C2" )
-                                                                , ( "height", "6px" )
-                                                                , ( "width", toString champ.info.attack ++ "0%" )
-                                                                ]
-                                                            ]
-                                                          <|
-                                                            empty
-                                                        , el MainFont [ paddingBottom 2, paddingTop 8 ] <| text ("Defense: " ++ toString champ.info.defense)
-                                                        , el NoStyle
-                                                            [ inlineStyle
-                                                                [ ( "background-color", "#F5CD1A" )
-                                                                , ( "height", "6px" )
-                                                                , ( "width", toString champ.info.defense ++ "0%" )
-                                                                ]
-                                                            ]
-                                                          <|
-                                                            empty
-                                                        , el MainFont [ paddingBottom 2, paddingTop 8 ] <| text ("Magic: " ++ toString champ.info.magic)
-                                                        , el NoStyle
-                                                            [ inlineStyle
-                                                                [ ( "background-color", "#44C0FF" )
-                                                                , ( "height", "6px" )
-                                                                , ( "width", toString champ.info.magic ++ "0%" )
-                                                                ]
-                                                            ]
-                                                          <|
-                                                            empty
-                                                        , el MainFont [ paddingBottom 2, paddingTop 8 ] <| text ("Difficulty: " ++ toString champ.info.difficulty)
-                                                        , el NoStyle
-                                                            [ inlineStyle
-                                                                [ ( "background-color", "#EA4F62" )
-                                                                , ( "height", "6px" )
-                                                                , ( "width", toString champ.info.difficulty ++ "0%" )
-                                                                ]
-                                                            ]
-                                                          <|
-                                                            empty
-                                                        , row MainFont [ paddingTop 20, inlineStyle [ ( "color", "#5D6467" ) ] ] <|
-                                                            (el NoStyle
-                                                                []
-                                                             <|
-                                                                text "Type: "
-                                                            )
-                                                                :: List.indexedMap
-                                                                    (\index champTag ->
-                                                                        if index == (List.length champ.tags - 1) then
-                                                                            el NoStyle [ inlineStyle [ ( "font-weight", "bold" ) ] ] <| text champTag
-                                                                        else
-                                                                            el NoStyle [ inlineStyle [ ( "font-weight", "bold" ) ] ] <| text (champTag ++ ", ")
-                                                                    )
-                                                                    champ.tags
-                                                        ]
+                                                        Nothing ->
+                                                            ""
+                                                , caption = champ.name
+                                                }
+                                            , h1 NoStyle [ inlineStyle [ ( "font-size", "48px" ) ] ] <| text champ.name
+                                            , h2 NoStyle [ inlineStyle [ ( "font-size", "22px" ) ] ] <| text champ.title
+                                            , paragraph NoStyle
+                                                [ inlineStyle
+                                                    [ ( "font-size", "13px" )
+                                                    , ( "text-align", "left" )
+                                                    , ( "color", "#5D6467" )
+                                                    ]
+                                                , paddingXY 25 15
+                                                ]
+                                                [ text champ.blurb
+                                                ]
+                                            , el MainFont [ paddingBottom 2 ] <| text ("Attack: " ++ toString champ.info.attack)
+                                            , el NoStyle
+                                                [ inlineStyle
+                                                    [ ( "background-color", "#50E3C2" )
+                                                    , ( "height", "6px" )
+                                                    , ( "width", toString champ.info.attack ++ "0%" )
                                                     ]
                                                 ]
+                                              <|
+                                                empty
+                                            , el MainFont [ paddingBottom 2, paddingTop 8 ] <| text ("Defense: " ++ toString champ.info.defense)
+                                            , el NoStyle
+                                                [ inlineStyle
+                                                    [ ( "background-color", "#F5CD1A" )
+                                                    , ( "height", "6px" )
+                                                    , ( "width", toString champ.info.defense ++ "0%" )
+                                                    ]
+                                                ]
+                                              <|
+                                                empty
+                                            , el MainFont [ paddingBottom 2, paddingTop 8 ] <| text ("Magic: " ++ toString champ.info.magic)
+                                            , el NoStyle
+                                                [ inlineStyle
+                                                    [ ( "background-color", "#44C0FF" )
+                                                    , ( "height", "6px" )
+                                                    , ( "width", toString champ.info.magic ++ "0%" )
+                                                    ]
+                                                ]
+                                              <|
+                                                empty
+                                            , el MainFont [ paddingBottom 2, paddingTop 8 ] <| text ("Difficulty: " ++ toString champ.info.difficulty)
+                                            , el NoStyle
+                                                [ inlineStyle
+                                                    [ ( "background-color", "#EA4F62" )
+                                                    , ( "height", "6px" )
+                                                    , ( "width", toString champ.info.difficulty ++ "0%" )
+                                                    ]
+                                                ]
+                                              <|
+                                                empty
+                                            , row MainFont [ paddingTop 20, inlineStyle [ ( "color", "#5D6467" ) ] ] <|
+                                                (el NoStyle
+                                                    []
+                                                 <|
+                                                    text "Type: "
+                                                )
+                                                    :: List.indexedMap
+                                                        (\index champTag ->
+                                                            if index == (List.length champ.tags - 1) then
+                                                                el NoStyle [ inlineStyle [ ( "font-weight", "bold" ) ] ] <| text champTag
+                                                            else
+                                                                el NoStyle [ inlineStyle [ ( "font-weight", "bold" ) ] ] <| text (champTag ++ ", ")
+                                                        )
+                                                        champ.tags
+                                            ]
+                                      else
+                                        within
+                                            [ overlay ]
+                                        <|
+                                            modal
+                                                NoStyle
+                                                [ center
+                                                , verticalCenter
+                                                , width (percent 50)
+                                                ]
+                                            <|
+                                                column NoStyle
+                                                    [ inlineStyle
+                                                        [ ( "background-color", "#fff" )
+                                                        , ( "border-radius", "6px" )
+                                                        ]
+                                                    ]
+                                                    [ row NoStyle
+                                                        [ spread
+                                                        , spacing 20
+                                                        ]
+                                                        [ column NoStyle
+                                                            [ alignLeft
+                                                            ]
+                                                            [ image NoStyle
+                                                                []
+                                                                { src =
+                                                                    case removeExtension champ of
+                                                                        Just champImg ->
+                                                                            "http://ddragon.leagueoflegends.com/cdn/img/champion/loading/" ++ champImg ++ "_0.jpg"
+
+                                                                        Nothing ->
+                                                                            ""
+                                                                , caption = champ.name
+                                                                }
+                                                            ]
+                                                        , wrappedColumn NoStyle
+                                                            [ alignLeft
+                                                            , paddingXY 0 10
+                                                            ]
+                                                            [ h1 NoStyle [ inlineStyle [ ( "font-size", "48px" ) ] ] <| text champ.name
+                                                            , h2 NoStyle [ inlineStyle [ ( "font-size", "22px" ) ] ] <| text champ.title
+                                                            , paragraph NoStyle
+                                                                [ inlineStyle
+                                                                    [ ( "font-size", "13px" )
+                                                                    , ( "text-align", "left" )
+                                                                    , ( "color", "#5D6467" )
+                                                                    ]
+                                                                , paddingXY 0 15
+                                                                ]
+                                                                [ text champ.blurb
+                                                                ]
+                                                            , el MainFont [ paddingBottom 2 ] <| text ("Attack: " ++ toString champ.info.attack)
+                                                            , el NoStyle
+                                                                [ inlineStyle
+                                                                    [ ( "background-color", "#50E3C2" )
+                                                                    , ( "height", "6px" )
+                                                                    , ( "width", toString champ.info.attack ++ "0%" )
+                                                                    ]
+                                                                ]
+                                                              <|
+                                                                empty
+                                                            , el MainFont [ paddingBottom 2, paddingTop 8 ] <| text ("Defense: " ++ toString champ.info.defense)
+                                                            , el NoStyle
+                                                                [ inlineStyle
+                                                                    [ ( "background-color", "#F5CD1A" )
+                                                                    , ( "height", "6px" )
+                                                                    , ( "width", toString champ.info.defense ++ "0%" )
+                                                                    ]
+                                                                ]
+                                                              <|
+                                                                empty
+                                                            , el MainFont [ paddingBottom 2, paddingTop 8 ] <| text ("Magic: " ++ toString champ.info.magic)
+                                                            , el NoStyle
+                                                                [ inlineStyle
+                                                                    [ ( "background-color", "#44C0FF" )
+                                                                    , ( "height", "6px" )
+                                                                    , ( "width", toString champ.info.magic ++ "0%" )
+                                                                    ]
+                                                                ]
+                                                              <|
+                                                                empty
+                                                            , el MainFont [ paddingBottom 2, paddingTop 8 ] <| text ("Difficulty: " ++ toString champ.info.difficulty)
+                                                            , el NoStyle
+                                                                [ inlineStyle
+                                                                    [ ( "background-color", "#EA4F62" )
+                                                                    , ( "height", "6px" )
+                                                                    , ( "width", toString champ.info.difficulty ++ "0%" )
+                                                                    ]
+                                                                ]
+                                                              <|
+                                                                empty
+                                                            , row MainFont [ paddingTop 20, inlineStyle [ ( "color", "#5D6467" ) ] ] <|
+                                                                (el NoStyle
+                                                                    []
+                                                                 <|
+                                                                    text "Type: "
+                                                                )
+                                                                    :: List.indexedMap
+                                                                        (\index champTag ->
+                                                                            if index == (List.length champ.tags - 1) then
+                                                                                el NoStyle [ inlineStyle [ ( "font-weight", "bold" ) ] ] <| text champTag
+                                                                            else
+                                                                                el NoStyle [ inlineStyle [ ( "font-weight", "bold" ) ] ] <| text (champTag ++ ", ")
+                                                                        )
+                                                                        champ.tags
+                                                            ]
+                                                        ]
+                                                    ]
                                     ]
 
                             Nothing ->
@@ -431,11 +527,21 @@ view model =
 ---- PROGRAM ----
 
 
-main : Program Never Model Msg
+type alias Flags =
+    { windowSize : Window.Size
+    }
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Window.resizes (\size -> ResizeWindow size)
+
+
+main : Program Flags Model Msg
 main =
-    Navigation.program LocationChange
+    Navigation.programWithFlags LocationChange
         { view = view
         , init = init
         , update = update
-        , subscriptions = always Sub.none
+        , subscriptions = subscriptions
         }

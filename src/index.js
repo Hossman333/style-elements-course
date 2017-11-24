@@ -1,4 +1,11 @@
 import './main.css';
 import { Main } from './Main.elm';
 
-Main.embed(document.getElementById('root'));
+let windowSize = {
+  width: window.innerWidth,
+  height: window.innerHeight
+};
+
+Main.embed(document.getElementById('root'), {
+  windowSize: windowSize
+});
