@@ -2,14 +2,14 @@ module Main exposing (..)
 
 import Element exposing (text)
 import Html exposing (Html)
-import Http exposing (expectJson)
-import HttpBuilder exposing (..)
+import Http
+import HttpBuilder
 import Json.Decode
 import Json.Decode.Pipeline
 import RemoteData exposing (WebData)
 import Style exposing (..)
 import Style.Font as Font
-import Task exposing (..)
+import Task
 
 
 ---- MODEL ----
@@ -33,13 +33,16 @@ init =
           ]
 
 
+
+---- REQUESTS ----
+
+
 decodeChampion : Json.Decode.Decoder Champion
 decodeChampion =
     Json.Decode.Pipeline.decode Champion
         |> Json.Decode.Pipeline.required "name" Json.Decode.string
         |> Json.Decode.Pipeline.required "title" Json.Decode.string
-        |> Json.Decode.Pipeline.custom
-            (Json.Decode.at [ "image", "full" ] Json.Decode.string)
+        |> Json.Decode.Pipeline.custom (Json.Decode.at [ "image", "full" ] Json.Decode.string)
         |> Json.Decode.Pipeline.required "id" Json.Decode.string
 
 
@@ -50,10 +53,10 @@ decodeChampions =
             Json.Decode.keyValuePairs decodeChampion
 
 
-getChampions : Task Never (WebData (List Champion))
+getChampions : Task.Task Never (WebData (List Champion))
 getChampions =
     HttpBuilder.get "http://ddragon.leagueoflegends.com/cdn/6.24.1/data/en_US/champion.json"
-        |> HttpBuilder.withExpect (Http.expectJson <| decodeChampions)
+        |> HttpBuilder.withExpect (Http.expectJson decodeChampions)
         |> HttpBuilder.toTask
         |> RemoteData.fromTask
 
@@ -113,15 +116,19 @@ view model =
                 text (toString error)
 
             RemoteData.Success champs ->
-                Element.paragraph NoStyle [] [ text (toString champs) ]
+                Element.paragraph NoStyle
+                    []
+                    [ text (toString champs)
+                    ]
+
+            RemoteData.Loading ->
+                text "Loading......PLEASE WAIT"
 
             _ ->
                 text ""
 
 
 
--- Element.h1 Header [] <|
---     text "There's a snake in my boot"
 ---- PROGRAM ----
 
 
