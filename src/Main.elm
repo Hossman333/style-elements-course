@@ -443,7 +443,7 @@ view model =
                                                             ]
                                                         , wrappedColumn NoStyle
                                                             [ alignLeft
-                                                            , paddingXY 0 10
+                                                            , paddingXY 0 0
                                                             ]
                                                             [ h1 NoStyle [ inlineStyle [ ( "font-size", "48px" ) ] ] <| text champ.name
                                                             , h2 NoStyle [ inlineStyle [ ( "font-size", "22px" ) ] ] <| text champ.title
