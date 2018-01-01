@@ -190,12 +190,14 @@ view model =
             []
             [ if model.isModalOpen then
                 within
-                    [ modal NoStyle
+                    [ overlay ]
+                <|
+                    modal NoStyle
                         [ center
                         , verticalCenter
                         , width (percent 50)
                         ]
-                      <|
+                    <|
                         case model.champSelected of
                             Just champ ->
                                 column NoStyle
@@ -225,7 +227,7 @@ view model =
                                             ]
                                         , wrappedColumn NoStyle
                                             [ alignLeft
-                                            , paddingXY 0 10
+                                            , paddingXY 0 0
                                             ]
                                             [ h1 NoStyle [ inlineStyle [ ( "font-size", "48px" ) ] ] <| text champ.name
                                             , h2 NoStyle [ inlineStyle [ ( "font-size", "22px" ) ] ] <| text champ.title
@@ -299,8 +301,6 @@ view model =
 
                             Nothing ->
                                 text "Error selecting champion..."
-                    ]
-                    overlay
               else
                 empty
             , case model.champions of
