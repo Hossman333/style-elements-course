@@ -155,12 +155,7 @@ update msg model =
             { model | champions = webChampionData } ! []
 
         ToggleModal champM ->
-            case champM of
-                Just champ ->
-                    { model | isModalOpen = not model.isModalOpen, champSelected = Just champ } ! []
-
-                Nothing ->
-                    { model | isModalOpen = not model.isModalOpen, champSelected = Nothing } ! []
+            { model | isModalOpen = not model.isModalOpen, champSelected = champM } ! []
 
         NoOp ->
             model ! []
